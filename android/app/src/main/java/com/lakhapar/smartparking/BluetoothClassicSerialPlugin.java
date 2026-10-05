@@ -25,13 +25,7 @@ import java.io.OutputStream;
 import java.util.Set;
 import java.util.UUID;
 
-@CapacitorPlugin(
-    name = "BluetoothClassicSerial",
-    permissions = {
-        @Permission(strings = { Manifest.permission.BLUETOOTH }, alias = "bluetooth"),
-        @Permission(strings = { Manifest.permission.BLUETOOTH_ADMIN }, alias = "bluetoothAdmin")
-    }
-)
+@CapacitorPlugin(name = "BluetoothClassicSerial")
 public class BluetoothClassicSerialPlugin extends Plugin {
 
     // Standard Bluetooth Serial Port Profile (SPP) UUID for HC-05 / HC-06 / Arduino
@@ -128,9 +122,7 @@ public class BluetoothClassicSerialPlugin extends Plugin {
                 }
 
                 if (targetDevice == null) {
-                    getActivity().runOnUiThread(() -> {
-                        call.reject("No HC-05 or Bluetooth device found. Please pair HC-05 in Android Settings first using PIN 1234.");
-                    });
+                    call.reject("No HC-05 or Bluetooth device found. Please pair HC-05 in Android Settings first using PIN 1234.");
                     return;
                 }
 
@@ -149,19 +141,15 @@ public class BluetoothClassicSerialPlugin extends Plugin {
                 final String connectedName = targetDevice.getName() != null ? targetDevice.getName() : "HC-05 Bluetooth";
                 final String connectedAddr = targetDevice.getAddress();
 
-                getActivity().runOnUiThread(() -> {
-                    JSObject ret = new JSObject();
-                    ret.put("connected", true);
-                    ret.put("name", connectedName);
-                    ret.put("address", connectedAddr);
-                    call.resolve(ret);
-                });
+                JSObject ret = new JSObject();
+                ret.put("connected", true);
+                ret.put("name", connectedName);
+                ret.put("address", connectedAddr);
+                call.resolve(ret);
 
             } catch (Exception e) {
                 cleanup();
-                getActivity().runOnUiThread(() -> {
-                    call.reject("Failed to connect to HC-05: " + e.getMessage() + ". Ensure HC-05 is powered and paired in Android Bluetooth Settings.");
-                });
+                call.reject("Failed to connect to HC-05: " + e.getMessage() + ". Ensure HC-05 is powered and paired in Android Bluetooth Settings.");
             }
         }).start();
     }

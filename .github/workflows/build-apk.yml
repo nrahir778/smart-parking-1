@@ -48,16 +48,26 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
 
-    - name: Enable AndroidX Flags Automatically
+    - name: Configure Android Build Properties & SDK
       run: |
-        if [ -d "android" ]; then
-          cd android
-          echo "android.useAndroidX=true" >> gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
+        PROPS_FILE=""
+        if [ -f "android/gradle.properties" ]; then
+          PROPS_FILE="android/gradle.properties"
         elif [ -f "gradle.properties" ]; then
-          echo "android.useAndroidX=true" >> gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
+          PROPS_FILE="gradle.properties"
         fi
+
+        if [ -n "$PROPS_FILE" ]; then
+          echo "android.useAndroidX=true" >> "$PROPS_FILE"
+          echo "android.enableJetifier=false" >> "$PROPS_FILE"
+          echo "compileSdkVersion=35" >> "$PROPS_FILE"
+          echo "targetSdkVersion=34" >> "$PROPS_FILE"
+          echo "minSdkVersion=24" >> "$PROPS_FILE"
+        fi
+
+        # Accept Android SDK licenses and ensure SDK platform 35 is ready
+        yes | sdkmanager --licenses || true
+        sdkmanager "platforms;android-35" "build-tools;35.0.0" || true
 
     - name: Ensure Persistent Keystore Exists
       run: |
@@ -80,7 +90,7 @@ jobs:
         GRADLEW_DIR=$(dirname "$GRADLEW_PATH")
         cd "$GRADLEW_DIR"
         chmod +x ./gradlew
-        bash ./gradlew assembleDebug
+        ./gradlew assembleDebug --stacktrace --no-daemon
 
     - name: Prepare Release APK with Latest Version
       run: |
@@ -98,16 +108,21 @@ jobs:
         fi
         
         echo "Found APK at: $APK_PATH"
-        TARGET_APK="SmartParking-v${VERSION}.apk"
-        LATEST_APK="SmartParking-latest.apk"
-        
-        cp "$APK_PATH" "$TARGET_APK"
-        cp "$APK_PATH" "$LATEST_APK"
-        
-        echo "RELEASE_TAG=${TAG}" >> $GITHUB_ENV
-        echo "RELEASE_VERSION=${VERSION}" >> $GITHUB_ENV
-        echo "RELEASE_APK=${TARGET_APK}" >> $GITHUB_ENV
-        echo "LATEST_APK=${LATEST_APK}" >> $GITHUB_ENV
+        if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
+          TARGET_APK="SmartParking-v${VERSION}.apk"
+          LATEST_APK="SmartParking-latest.apk"
+          
+          cp "$APK_PATH" "$TARGET_APK"
+          cp "$APK_PATH" "$LATEST_APK"
+          
+          echo "RELEASE_TAG=${TAG}" >> $GITHUB_ENV
+          echo "RELEASE_VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "RELEASE_APK=${TARGET_APK}" >> $GITHUB_ENV
+          echo "LATEST_APK=${LATEST_APK}" >> $GITHUB_ENV
+        else
+          echo "Error: No APK found after assembleDebug"
+          exit 1
+        fi
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
@@ -120,6 +135,7 @@ jobs:
 
     - name: Publish Direct GitHub Release
       if: github.event_name != 'pull_request'
+      continue-on-error: true
       uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ env.RELEASE_TAG }}
