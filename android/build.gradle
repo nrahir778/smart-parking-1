@@ -25,7 +25,7 @@ allprojects {
     afterEvaluate { project ->
         if (project.hasProperty('android')) {
             try {
-                project.android.compileSdk = 35
+                project.android.compileSdk = rootProject.ext.compileSdkVersion
             } catch (Exception ignored) {}
         }
     }

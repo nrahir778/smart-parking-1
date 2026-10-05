@@ -60,14 +60,14 @@ jobs:
         if [ -n "$PROPS_FILE" ]; then
           echo "android.useAndroidX=true" >> "$PROPS_FILE"
           echo "android.enableJetifier=false" >> "$PROPS_FILE"
-          echo "compileSdkVersion=35" >> "$PROPS_FILE"
-          echo "targetSdkVersion=34" >> "$PROPS_FILE"
+          echo "compileSdkVersion=36" >> "$PROPS_FILE"
+          echo "targetSdkVersion=36" >> "$PROPS_FILE"
           echo "minSdkVersion=24" >> "$PROPS_FILE"
         fi
 
-        # Accept Android SDK licenses and ensure SDK platform 35 is ready
+        # Accept Android SDK licenses and ensure SDK platform 36 is ready
         yes | sdkmanager --licenses || true
-        sdkmanager "platforms;android-35" "build-tools;35.0.0" || true
+        sdkmanager "platforms;android-36" "build-tools;36.0.0" "platforms;android-35" || true
 
     - name: Ensure Persistent Keystore Exists
       run: |
