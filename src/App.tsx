@@ -526,6 +526,26 @@ export default function App() {
           lastUpdated: Date.now(),
         });
 
+        // Also synchronize slots if individual slot readings haven't tagged slots yet:
+        // If parsed.data.totalOccupied is e.g. 2, make sure bays 1 and 2 are OCCUPIED so cars render!
+        setSlots((prevSlots) => {
+          const explicitCount = prevSlots.filter((s) => s.status === 'OCCUPIED').length;
+          if (explicitCount === parsed.data.totalOccupied) return prevSlots;
+          return prevSlots.map((s, idx) => {
+            const isOccupied = idx < parsed.data.totalOccupied;
+            if (s.status === (isOccupied ? 'OCCUPIED' : 'EMPTY')) return s;
+            return {
+              ...s,
+              status: isOccupied ? 'OCCUPIED' : 'EMPTY',
+              distance: isOccupied ? 2.5 : 25.0,
+              hasHardwareReading: true,
+              lastUpdated: Date.now(),
+              parkedSince: isOccupied ? (s.parkedSince || Date.now()) : null,
+              currentCharge: isOccupied ? s.currentCharge : 0,
+            };
+          });
+        });
+
         const isClosed = parsed.data.gate === 'CLOSED';
         setGateState({
           angle: isClosed ? 90 : 0,
@@ -580,22 +600,76 @@ export default function App() {
     if (!isConnected) {
       cloudSync.startLivePolling((cloudData: ParkingCloudState) => {
         if (!cloudData || !cloudData.slots) return;
-        setIsCloudSyncActive(true);
 
-        setSlots((prevSlots) =>
-          prevSlots.map((slot) => {
+        const isGatewayOnline =
+          cloudData.isHardwareConnected !== false &&
+          cloudData.source !== 'disconnected' &&
+          Boolean(cloudData.lastUpdated && Date.now() - cloudData.lastUpdated < 4000);
+
+        setIsCloudSyncActive(isGatewayOnline);
+
+        // If gateway phone disconnected Bluetooth or is offline:
+        // Clear occupied slots so live viewer does NOT keep showing 2 slots occupied!
+        if (!isGatewayOnline) {
+          setSlots((prevSlots) =>
+            prevSlots.map((slot) => ({
+              ...slot,
+              status: 'UNKNOWN',
+              distance: 0,
+              hasHardwareReading: false,
+              lastUpdated: 0,
+              currentCharge: 0,
+            }))
+          );
+
+          setGateState({
+            angle: 0,
+            status: 'OPEN',
+          });
+
+          setBuzzerState((prev) => ({ ...prev, hardwareBuzzerOn: false }));
+
+          setArduinoSummary({
+            totalOccupied: 0,
+            totalSlots: 3,
+            occupiedFraction: '0/3',
+            empty: 3,
+            unknown: 3,
+            available: 3,
+            gate: 'OPEN',
+            lastUpdated: 0,
+          });
+
+          setLastDataReceivedAt(null);
+          return;
+        }
+
+        // Gateway is LIVE & ACTIVE: populate slots and charges
+        setSlots((prevSlots) => {
+          const explicitOccupiedInCloud = cloudData.slots.filter((s) => s.status === 'OCCUPIED').length;
+          return prevSlots.map((slot, idx) => {
             const updated = cloudData.slots.find((s) => s.id === slot.id);
             if (!updated) return slot;
+
+            // If summary says N cars are occupied, but individual slot statuses were unknown,
+            // ensure the first N slots are marked OCCUPIED so cars render in the 3D parking lot!
+            const shouldBeOccupied =
+              updated.status === 'OCCUPIED' ||
+              (explicitOccupiedInCloud === 0 && cloudData.totalOccupied > 0 && idx < cloudData.totalOccupied);
+
             return {
               ...slot,
-              status: updated.status,
+              status: shouldBeOccupied ? 'OCCUPIED' : updated.status,
               distance: updated.distance,
               unit: updated.unit || 'cm',
               hasHardwareReading: true,
               lastUpdated: Date.now(),
+              currentCharge: updated.currentCharge ?? slot.currentCharge,
+              parkedSince: updated.parkedSince ?? slot.parkedSince,
+              car: updated.car || slot.car,
             };
-          })
-        );
+          });
+        });
 
         setGateState({
           angle: cloudData.gateAngle ?? (cloudData.gate === 'CLOSED' ? 90 : 0),
@@ -630,9 +704,13 @@ export default function App() {
     }
   }, [isConnected]);
 
-  // Broadcast to Cloud when local hardware updates parking status
+  // Continuous Real-Time Heartbeat Broadcast:
+  // When main phone is connected to Bluetooth or USB, broadcast state immediately
+  // and send a 1.5-second heartbeat so server and public viewers always receive fresh data!
   useEffect(() => {
-    if (isConnected) {
+    if (!isConnected) return;
+
+    const doBroadcast = () => {
       cloudSync.broadcastState({
         slots: slots.map((s) => ({
           id: s.id as 1 | 2 | 3,
@@ -641,15 +719,26 @@ export default function App() {
           distance: s.distance,
           unit: s.unit || 'cm',
           updatedAt: new Date(s.lastUpdated || Date.now()).toISOString(),
+          hasHardwareReading: s.hasHardwareReading,
+          currentCharge: s.currentCharge,
+          parkedSince: s.parkedSince,
+          car: s.car,
         })),
         gate: gateState.status,
         gateAngle: gateState.angle,
         buzzerOn: buzzerState.hardwareBuzzerOn,
         totalOccupied: effectiveOccupiedCount,
         totalSlots: 3,
+        isHardwareConnected: true,
         source: connectionMode === 'connected_bt' ? 'gateway_bt' : 'gateway_usb',
       });
-    }
+    };
+
+    doBroadcast();
+
+    const heartbeatTimer = setInterval(doBroadcast, 1500);
+
+    return () => clearInterval(heartbeatTimer);
   }, [
     slots,
     gateState.status,
@@ -672,6 +761,7 @@ export default function App() {
           handleIncomingSerialLine(line);
         },
         (error) => {
+          cloudSync.broadcastDisconnected();
           if (error) {
             addLog(`[ERROR] USB Serial disconnected: ${error.message}`, 'error');
             setErrorMessage(error.message);
@@ -711,6 +801,7 @@ export default function App() {
           handleIncomingSerialLine(line);
         },
         (error) => {
+          cloudSync.broadcastDisconnected();
           if (error) {
             addLog(`[ERROR] Bluetooth disconnected: ${error.message}`, 'error');
             setErrorMessage(error.message);
@@ -738,6 +829,7 @@ export default function App() {
             handleIncomingSerialLine(line);
           },
           (error) => {
+            cloudSync.broadcastDisconnected();
             if (error) {
               addLog(`[ERROR] Bluetooth COM disconnected: ${error.message}`, 'error');
               setErrorMessage(error.message);
@@ -772,6 +864,7 @@ export default function App() {
   };
 
   const handleDisconnect = async () => {
+    cloudSync.broadcastDisconnected();
     try {
       if (connectionMode === 'connected_usb') {
         await serialManager.disconnect();
@@ -945,6 +1038,8 @@ export default function App() {
             isFullscreen={true}
             onToggleFullscreen={(val) => setIsParkingLotFullscreen(val)}
             isConnected={isConnected}
+            isReadOnlyView={isReadOnlyView}
+            isCloudSyncActive={isCloudSyncActive}
           />
         </div>
       )}
@@ -1025,6 +1120,8 @@ export default function App() {
           isFullscreen={false}
           onToggleFullscreen={(val) => setIsParkingLotFullscreen(val)}
           isConnected={isConnected}
+          isReadOnlyView={isReadOnlyView}
+          isCloudSyncActive={isCloudSyncActive}
         />
 
         {/* Common Buzzer Indicator (Operator Mode Only) */}

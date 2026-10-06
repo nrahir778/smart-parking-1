@@ -5,18 +5,21 @@ import { defineConfig, Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 function devParkingApiPlugin(): Plugin {
+  const GATEWAY_HEARTBEAT_TIMEOUT_MS = 4000;
   let latestParkingState = {
     slots: [
-      { id: 1, name: 'Slot 1', status: 'EMPTY', distance: 25.0, unit: 'cm', updatedAt: new Date().toISOString() },
-      { id: 2, name: 'Slot 2', status: 'EMPTY', distance: 25.0, unit: 'cm', updatedAt: new Date().toISOString() },
-      { id: 3, name: 'Slot 3', status: 'EMPTY', distance: 25.0, unit: 'cm', updatedAt: new Date().toISOString() },
+      { id: 1, name: 'LOT 1', status: 'UNKNOWN', distance: 0, unit: 'cm', updatedAt: new Date().toISOString(), hasHardwareReading: false },
+      { id: 2, name: 'LOT 2', status: 'UNKNOWN', distance: 0, unit: 'cm', updatedAt: new Date().toISOString(), hasHardwareReading: false },
+      { id: 3, name: 'LOT 3', status: 'UNKNOWN', distance: 0, unit: 'cm', updatedAt: new Date().toISOString(), hasHardwareReading: false },
     ],
     gate: 'OPEN',
     gateAngle: 0,
     buzzerOn: false,
     totalOccupied: 0,
     totalSlots: 3,
-    lastUpdated: Date.now(),
+    lastUpdated: 0,
+    isHardwareConnected: false,
+    isOnline: false,
     source: 'initial',
   };
 
@@ -45,9 +48,18 @@ function devParkingApiPlugin(): Plugin {
             try {
               const data = JSON.parse(body);
               if (data && data.slots) {
-                latestParkingState = { ...data, lastUpdated: Date.now() };
+                const isDisconnected = data.isHardwareConnected === false || data.source === 'disconnected';
+                const isConnected = !isDisconnected;
+                latestParkingState = {
+                  ...data,
+                  isHardwareConnected: isConnected,
+                  isOnline: isConnected,
+                  totalOccupied: isConnected ? (data.totalOccupied || 0) : 0,
+                  lastUpdated: isConnected ? Date.now() : 0,
+                  source: isConnected ? (data.source || 'gateway_bt') : 'disconnected',
+                };
                 res.statusCode = 200;
-                res.end(JSON.stringify({ ok: true, lastUpdated: latestParkingState.lastUpdated }));
+                res.end(JSON.stringify({ ok: true, lastUpdated: latestParkingState.lastUpdated, isHardwareConnected: isConnected }));
                 return;
               }
             } catch (e) {}
@@ -58,8 +70,40 @@ function devParkingApiPlugin(): Plugin {
         }
 
         if (req.method === 'GET') {
+          const now = Date.now();
+          const timeSinceLastUpdate = now - (latestParkingState.lastUpdated || 0);
+
+          if (
+            !latestParkingState.lastUpdated ||
+            timeSinceLastUpdate > GATEWAY_HEARTBEAT_TIMEOUT_MS ||
+            latestParkingState.isHardwareConnected === false ||
+            latestParkingState.source === 'disconnected'
+          ) {
+            const offlineState = {
+              slots: [
+                { id: 1, name: 'LOT 1', status: 'UNKNOWN', distance: 0, unit: 'cm', updatedAt: new Date().toISOString(), hasHardwareReading: false },
+                { id: 2, name: 'LOT 2', status: 'UNKNOWN', distance: 0, unit: 'cm', updatedAt: new Date().toISOString(), hasHardwareReading: false },
+                { id: 3, name: 'LOT 3', status: 'UNKNOWN', distance: 0, unit: 'cm', updatedAt: new Date().toISOString(), hasHardwareReading: false },
+              ],
+              gate: 'OPEN',
+              gateAngle: 0,
+              buzzerOn: false,
+              totalOccupied: 0,
+              totalSlots: 3,
+              lastUpdated: 0,
+              timeSinceLastUpdate: 999999,
+              isHardwareConnected: false,
+              isOnline: false,
+              source: 'disconnected',
+              statusMessage: 'Bluetooth disconnected from main phone',
+            };
+            res.statusCode = 200;
+            res.end(JSON.stringify(offlineState));
+            return;
+          }
+
           res.statusCode = 200;
-          res.end(JSON.stringify(latestParkingState));
+          res.end(JSON.stringify({ ...latestParkingState, isHardwareConnected: true, isOnline: true, timeSinceLastUpdate }));
           return;
         }
 

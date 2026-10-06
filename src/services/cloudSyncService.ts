@@ -1,7 +1,7 @@
 // Cloud Synchronization Service for Smart Parking System
 // Enables real-time telemetry sharing from Gateway device to Cloud & Public QR Viewers
 
-import { SlotStatus } from '../types';
+import { SlotStatus, CarVisualConfig } from '../types';
 
 export interface ParkingCloudState {
   slots: {
@@ -11,6 +11,10 @@ export interface ParkingCloudState {
     distance: number;
     unit: string;
     updatedAt: string;
+    hasHardwareReading?: boolean;
+    currentCharge?: number;
+    parkedSince?: number | null;
+    car?: CarVisualConfig;
   }[];
   gate: 'OPEN' | 'CLOSED';
   gateAngle: number;
@@ -18,7 +22,10 @@ export interface ParkingCloudState {
   totalOccupied: number;
   totalSlots: number;
   lastUpdated: number;
-  source: 'gateway_bt' | 'gateway_usb' | 'simulator' | 'cloud';
+  isHardwareConnected?: boolean;
+  isOnline?: boolean;
+  statusMessage?: string;
+  source: 'gateway_bt' | 'gateway_usb' | 'simulator' | 'cloud' | 'disconnected';
 }
 
 class CloudSyncService {
@@ -51,6 +58,47 @@ class CloudSyncService {
     return this.lastSuccessfulSync;
   }
 
+  // Called when Bluetooth disconnects to immediately inform Cloud viewers
+  public async broadcastDisconnected(): Promise<boolean> {
+    try {
+      const payload: ParkingCloudState = {
+        slots: [
+          { id: 1, name: 'LOT 1', status: 'UNKNOWN', distance: 0, unit: 'cm', updatedAt: new Date().toISOString(), hasHardwareReading: false },
+          { id: 2, name: 'LOT 2', status: 'UNKNOWN', distance: 0, unit: 'cm', updatedAt: new Date().toISOString(), hasHardwareReading: false },
+          { id: 3, name: 'LOT 3', status: 'UNKNOWN', distance: 0, unit: 'cm', updatedAt: new Date().toISOString(), hasHardwareReading: false },
+        ],
+        gate: 'OPEN',
+        gateAngle: 0,
+        buzzerOn: false,
+        totalOccupied: 0,
+        totalSlots: 3,
+        lastUpdated: Date.now(),
+        isHardwareConnected: false,
+        isOnline: false,
+        source: 'disconnected',
+        statusMessage: 'Bluetooth disconnected from main phone',
+      };
+
+      this.lastBroadcastTime = Date.now();
+      const res = await fetch('/api/parking/state', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        this.lastKnownState = payload;
+        this.lastSuccessfulSync = Date.now();
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
   // Called by Master device connected to Arduino/HC-05 or Simulator
   public async broadcastState(state: Omit<ParkingCloudState, 'lastUpdated'>): Promise<boolean> {
     if (!this.isBroadcasting) return false;
@@ -65,6 +113,7 @@ class CloudSyncService {
     try {
       const payload: ParkingCloudState = {
         ...state,
+        isHardwareConnected: state.isHardwareConnected !== false,
         lastUpdated: now,
       };
 

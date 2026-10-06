@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CarVisualConfig } from '../types';
 
 interface Car3DProps {
-  car: CarVisualConfig;
+  car?: CarVisualConfig;
   slotNumber: number;
   currentCharge?: number;
   parkedSince?: number | null;
@@ -16,11 +16,43 @@ export const Car3D: React.FC<Car3DProps> = ({
   parkedSince,
   isLightMode = false,
 }) => {
+  const safeCar = useMemo(() => {
+    if (car && car.bodyColor) return car;
+    if (slotNumber === 1) {
+      return {
+        bodyColor: '#1e3a8a',
+        roofColor: '#172554',
+        accentColor: '#38bdf8',
+        modelName: 'Executive Sedan',
+        plate: 'GJ 12 AK 4589',
+        type: 'sedan' as const,
+      };
+    }
+    if (slotNumber === 2) {
+      return {
+        bodyColor: '#e2e8f0',
+        roofColor: '#0f172a',
+        accentColor: '#94a3b8',
+        modelName: 'Urban Compact SUV',
+        plate: 'GJ 12 BP 2024',
+        type: 'suv' as const,
+      };
+    }
+    return {
+      bodyColor: '#dc2626',
+      roofColor: '#991b1b',
+      accentColor: '#f87171',
+      modelName: 'Sport Coupe',
+      plate: 'GJ 12 CR 8831',
+      type: 'hatchback' as const,
+    };
+  }, [car, slotNumber]);
+
   // Determine vehicle body style
-  const bodyType = car.type || (slotNumber === 1 ? 'sedan' : slotNumber === 2 ? 'suv' : 'hatchback');
+  const bodyType = safeCar.type || (slotNumber === 1 ? 'sedan' : slotNumber === 2 ? 'suv' : 'hatchback');
 
   // Format parked duration
-  const durationText = React.useMemo(() => {
+  const durationText = useMemo(() => {
     if (!parkedSince) return '00:00';
     const elapsedSeconds = Math.max(0, Math.floor((Date.now() - parkedSince) / 1000));
     const mins = Math.floor(elapsedSeconds / 60);
@@ -28,11 +60,15 @@ export const Car3D: React.FC<Car3DProps> = ({
     return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
   }, [parkedSince, currentCharge]);
 
+  // If already parked for a while, keep static to avoid re-triggering entrance animation on polling
+  const isNewlyArrived = parkedSince && Date.now() - parkedSince < 800;
+
   return (
     <div
       className="relative w-24 h-40 select-none preserve-3d"
       style={{
-        animation: 'carEnter 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
+        animation: isNewlyArrived ? 'carEnter 0.65s cubic-bezier(0.2, 0.8, 0.2, 1) forwards' : 'none',
+        transform: 'translateY(0px)',
       }}
     >
       {/* LIVE BILLING HUD TAG FLOATING DIRECTLY ABOVE CAR */}
@@ -113,7 +149,7 @@ export const Car3D: React.FC<Car3DProps> = ({
       <div
         className="absolute inset-0 rounded-2xl preserve-3d border transition-all duration-300"
         style={{
-          background: `linear-gradient(175deg, ${car.bodyColor} 0%, ${car.roofColor} 60%, ${car.accentColor} 100%)`,
+          background: `linear-gradient(175deg, ${safeCar.bodyColor} 0%, ${safeCar.roofColor} 60%, ${safeCar.accentColor} 100%)`,
           borderColor: isLightMode ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)',
           boxShadow: isLightMode
             ? '0 12px 24px -4px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.3)'
@@ -194,7 +230,7 @@ export const Car3D: React.FC<Car3DProps> = ({
           <div
             className="absolute top-3.5 inset-x-1.5 h-12 rounded-lg border border-white/20 flex flex-col items-center justify-between p-1 shadow-inner"
             style={{
-              background: `linear-gradient(180deg, ${car.roofColor} 0%, ${car.bodyColor} 100%)`,
+              background: `linear-gradient(180deg, ${safeCar.roofColor} 0%, ${safeCar.bodyColor} 100%)`,
               transform: 'translateZ(3px)',
             }}
           >
@@ -225,7 +261,7 @@ export const Car3D: React.FC<Car3DProps> = ({
             </div>
             {/* Registration Number */}
             <span className="text-[7px] font-mono text-slate-950 font-black tracking-tight leading-none">
-              {car.plate}
+              {safeCar.plate}
             </span>
           </div>
         </div>

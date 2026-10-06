@@ -28,6 +28,8 @@ interface IsometricParkingLotProps {
   isFullscreen?: boolean;
   onToggleFullscreen?: (fullscreen: boolean) => void;
   isConnected?: boolean;
+  isReadOnlyView?: boolean;
+  isCloudSyncActive?: boolean;
 }
 
 export const IsometricParkingLot: React.FC<IsometricParkingLotProps> = ({
@@ -40,6 +42,8 @@ export const IsometricParkingLot: React.FC<IsometricParkingLotProps> = ({
   isFullscreen = false,
   onToggleFullscreen,
   isConnected = false,
+  isReadOnlyView = false,
+  isCloudSyncActive = false,
 }) => {
   const [cameraView, setCameraView] = useState<CameraView>('isometric');
   const [showSensorRays, setShowSensorRays] = useState(true);
@@ -91,8 +95,9 @@ export const IsometricParkingLot: React.FC<IsometricParkingLotProps> = ({
   }, [cameraView, isFullscreen]);
 
   const isGateClosed = gateState.angle >= 45 || gateState.status === 'CLOSED';
-  const totalOccupied = isConnected ? slots.filter((s) => s.status === 'OCCUPIED').length : 0;
-  const isAllFull = isConnected && totalOccupied >= slots.length;
+  const isLiveActive = isConnected || isCloudSyncActive || isReadOnlyView;
+  const totalOccupied = isLiveActive ? slots.filter((s) => s.status === 'OCCUPIED').length : 0;
+  const isAllFull = isLiveActive && totalOccupied >= slots.length;
 
   /**
    * MATHEMATICAL AUTO-FIT SCALING ENGINE:
@@ -197,7 +202,7 @@ export const IsometricParkingLot: React.FC<IsometricParkingLotProps> = ({
           >
             <span
               className={`w-2 h-2 rounded-full shrink-0 ${
-                isConnected
+                isLiveActive
                   ? isAllFull
                     ? 'bg-rose-500 animate-ping'
                     : 'bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]'
@@ -210,14 +215,14 @@ export const IsometricParkingLot: React.FC<IsometricParkingLotProps> = ({
               </span>
               <span
                 className={`text-[10px] font-mono font-semibold tabular-nums ${
-                  isConnected
+                  isLiveActive
                     ? isAllFull
                       ? 'text-rose-600 dark:text-rose-400 font-bold'
                       : 'text-emerald-600 dark:text-emerald-400 font-bold'
                     : 'text-cyan-600 dark:text-cyan-300'
                 }`}
               >
-                {isConnected ? (isAllFull ? '3/3 Occupied' : `${totalOccupied}/3 Occupied`) : 'Standby'}
+                {isLiveActive ? (isAllFull ? '3/3 Occupied' : `${totalOccupied}/3 Occupied`) : 'Standby / Offline'}
               </span>
             </div>
           </div>
@@ -389,11 +394,11 @@ export const IsometricParkingLot: React.FC<IsometricParkingLotProps> = ({
               <div className="flex items-center gap-2">
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    isConnected ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'
+                    isLiveActive ? 'bg-emerald-400 animate-ping' : 'bg-slate-400'
                   }`}
                 />
                 <span className="text-xs font-mono font-bold text-cyan-300 uppercase">
-                  {isConnected ? (isAllFull ? 'FULL' : 'ACTIVE') : 'STANDBY'}
+                  {isLiveActive ? (isAllFull ? 'FULL' : 'ACTIVE') : 'STANDBY'}
                 </span>
               </div>
             </div>
@@ -401,8 +406,12 @@ export const IsometricParkingLot: React.FC<IsometricParkingLotProps> = ({
             {/* 2. THE 3 PARKING BAYS WITH LANDSCAPED GRASS MEDIANS */}
             <div className="w-full px-5 py-3 flex items-center justify-between gap-3 preserve-3d">
               {slots.map((slot, index) => {
-                const isOccupied = isConnected && slot.status === 'OCCUPIED';
-                const isEmpty = isConnected && (slot.status === 'EMPTY' || slot.status === 'AVAILABLE');
+                const explicitOccupiedCount = slots.filter((s) => s.status === 'OCCUPIED').length;
+                const isSlotExplicitOccupied = slot.status === 'OCCUPIED';
+                const isSlotImplicitOccupied =
+                  explicitOccupiedCount === 0 && totalOccupied > 0 && index < totalOccupied;
+                const isOccupied = isLiveActive && (isSlotExplicitOccupied || isSlotImplicitOccupied);
+                const isEmpty = isLiveActive && !isOccupied && (slot.status === 'EMPTY' || slot.status === 'AVAILABLE' || index >= totalOccupied);
                 const isSelected = selectedSlotId === slot.id;
 
                 return (
@@ -520,7 +529,7 @@ export const IsometricParkingLot: React.FC<IsometricParkingLotProps> = ({
                       <div className="w-full flex items-center justify-between px-2 py-0.5 text-[9px] font-mono text-slate-200 bg-black/85 rounded-lg border border-white/10 z-20">
                         <span className="tabular-nums flex items-center gap-1">
                           <Radio className="w-2.5 h-2.5 text-cyan-400" />
-                          {slot.hasHardwareReading && isConnected
+                          {(slot.hasHardwareReading || isLiveActive) && slot.status !== 'UNKNOWN'
                             ? `${slot.distance.toFixed(1)} ${slot.unit || 'cm'}`
                             : '--.- cm'}
                         </span>

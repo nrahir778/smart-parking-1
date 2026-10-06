@@ -9,6 +9,7 @@ import {
   IndianRupee,
   Receipt,
   Bluetooth,
+  Car,
 } from 'lucide-react';
 
 interface SlotCardProps {
@@ -184,17 +185,30 @@ export const SlotCard: React.FC<SlotCardProps> = ({
             <div className="text-right">
               {isLive ? (
                 isOccupied ? (
-                  <div className="flex flex-col items-end">
-                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                      {slot.car.plate}
-                    </span>
-                    <span className="text-[8px] text-slate-500 dark:text-slate-400 truncate max-w-[90px]">
-                      {slot.car.modelName}
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-8 h-8 rounded-xl border flex items-center justify-center shadow-xs shrink-0"
+                      style={{
+                        backgroundColor: `${slot.car?.bodyColor || '#1e3a8a'}25`,
+                        borderColor: slot.car?.bodyColor || '#1e3a8a',
+                        color: slot.car?.bodyColor || '#38bdf8',
+                      }}
+                      title={slot.car?.modelName || 'Parked Vehicle'}
+                    >
+                      <Car className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700">
+                        {slot.car?.plate || `GJ 12 CAR 0${slot.id}`}
+                      </span>
+                      <span className="text-[8px] font-bold text-slate-600 dark:text-slate-300 truncate max-w-[100px]">
+                        {slot.car?.modelName || 'Vehicle Parked'}
+                      </span>
+                    </div>
                   </div>
                 ) : (
-                  <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                    🟢 ખાલી સ્લોટ
+                  <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
+                    🟢 ખાલી સ્લોટ (FREE)
                   </span>
                 )
               ) : (
@@ -233,7 +247,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({
             </span>
             <span
               className={`font-mono font-semibold ${
-                isConnected
+                isLive
                   ? isOccupied
                     ? 'text-rose-500 font-bold'
                     : isEmpty
@@ -242,11 +256,11 @@ export const SlotCard: React.FC<SlotCardProps> = ({
                   : 'text-slate-400'
               }`}
             >
-              {isConnected
+              {isLive
                 ? isOccupied
-                  ? 'Vehicle Parked'
+                  ? '🚗 Vehicle Parked'
                   : isEmpty
-                  ? 'Bay Cleared'
+                  ? '🟢 Bay Available'
                   : 'Standby'
                 : 'Connect Bluetooth'}
             </span>
@@ -254,7 +268,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({
 
           <div className="flex items-baseline gap-1">
             <span className="text-xl sm:text-2xl font-mono font-black tabular-nums tracking-tight">
-              {slot.hasHardwareReading && isConnected ? slot.distance.toFixed(1) : '--.-'}
+              {(slot.hasHardwareReading || isLive) && slot.status !== 'UNKNOWN' ? slot.distance.toFixed(1) : '--.-'}
             </span>
             <span className="text-xs font-mono font-bold opacity-75">{unit}</span>
           </div>
@@ -263,13 +277,13 @@ export const SlotCard: React.FC<SlotCardProps> = ({
           <div className="w-full bg-slate-300/80 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-500 rounded-full ${
-                isConnected && isOccupied
+                isLive && isOccupied
                   ? 'bg-rose-500'
-                  : isConnected && isEmpty
+                  : isLive && isEmpty
                   ? 'bg-emerald-500'
                   : 'bg-slate-500'
               }`}
-              style={{ width: `${isConnected ? distPercent : 0}%` }}
+              style={{ width: `${isLive ? distPercent : 0}%` }}
             />
           </div>
         </div>
@@ -284,7 +298,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({
         <span className="flex items-center gap-1.5">
           <span
             className={`w-1.5 h-1.5 rounded-full ${
-              isConnected
+              isLive
                 ? isOccupied
                   ? 'bg-rose-500'
                   : isEmpty
@@ -294,7 +308,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({
             }`}
           />
           <span>
-            {isConnected
+            {isLive
               ? isOccupied
                 ? 'Occupied'
                 : isEmpty

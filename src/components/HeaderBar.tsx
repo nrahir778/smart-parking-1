@@ -30,6 +30,7 @@ interface HeaderBarProps {
   onToggleFullscreen?: () => void;
   isReadOnlyView?: boolean;
   onSwitchToAdmin?: () => void;
+  isCloudSyncActive?: boolean;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -47,6 +48,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onToggleFullscreen,
   isReadOnlyView = false,
   onSwitchToAdmin,
+  isCloudSyncActive = false,
 }) => {
   const isConnected = connectionMode === 'connected_usb' || connectionMode === 'connected_bt';
   const isConnecting = connectionMode === 'connecting';
