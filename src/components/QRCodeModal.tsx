@@ -192,11 +192,13 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
                     : '🔴 પાર્કિંગ ફૂલ (All Full)'}
                 </span>
               </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                🔒 100% Read-Only
+              </span>
             </div>
 
             <p className="text-xs text-slate-400 max-w-sm">
-              પાર્કિંગ ગેટ પર આ QR કોડ લગાવો. કોઈપણ વાહનચાલક પોતાના કેમેરાથી સ્કેન કરીને
-              દુનિયાના કોઈપણ છેડેથી લાઈવ પાર્કિંગ સ્ટેટસ જોઈ શકશે.
+              આ QR કોડ પબ્લિક લાઈવ લિંક (<span className="text-cyan-400 font-mono">?view=live</span>) ખોલે છે. કોઈપણ મુલાકાતી સ્કેન કરશે તો માત્ર પાર્કિંગ સ્ટેટસ દેખાશે — બ્લૂટૂથ કનેક્ટ બટન, એડમિન સેટિંગ્સ કે કંટ્રોલ દેખાશે નહીં.
             </p>
           </div>
 

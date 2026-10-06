@@ -11,6 +11,8 @@ import {
   BellRing,
   Laptop,
   QrCode,
+  Radio,
+  Sliders,
 } from 'lucide-react';
 
 interface HeaderBarProps {
@@ -26,6 +28,8 @@ interface HeaderBarProps {
   portLabel?: string;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  isReadOnlyView?: boolean;
+  onSwitchToAdmin?: () => void;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -41,6 +45,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   portLabel,
   isFullscreen = false,
   onToggleFullscreen,
+  isReadOnlyView = false,
+  onSwitchToAdmin,
 }) => {
   const isConnected = connectionMode === 'connected_usb' || connectionMode === 'connected_bt';
   const isConnecting = connectionMode === 'connecting';
@@ -85,164 +91,235 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       </div>
 
       {/* Zone 2: System Status Indicator */}
-      <div
-        className={`hidden md:flex items-center gap-1.5 text-xs font-mono shrink-0 px-2.5 py-1 rounded-xl border transition-all ${
-          connectionMode === 'connected_bt'
-            ? isLight
-              ? 'bg-blue-50 border-blue-200 text-blue-800'
-              : 'bg-blue-950/40 border-blue-500/40 text-blue-300'
-            : connectionMode === 'connected_usb'
-            ? isLight
-              ? 'bg-cyan-50 border-cyan-200 text-cyan-800'
-              : 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300'
-            : isConnecting
-            ? isLight
-              ? 'bg-amber-50 border-amber-300 text-amber-800'
-              : 'bg-amber-950/40 border-amber-500/40 text-amber-300'
-            : isLight
-            ? 'bg-rose-50/60 border-rose-200 text-rose-700'
-            : 'bg-slate-900/60 border-slate-700/60 text-slate-400'
-        }`}
-      >
-        <Bluetooth
-          className={`w-3.5 h-3.5 shrink-0 ${
-            connectionMode === 'connected_bt'
-              ? 'text-blue-500 dark:text-cyan-400'
-              : connectionMode === 'connected_usb'
-              ? 'text-cyan-500'
-              : isConnecting
-              ? 'text-amber-400 animate-pulse'
-              : 'text-rose-500 dark:text-rose-400'
-          }`}
-        />
-        <span className="font-bold text-[11px] sm:text-xs">
-          {connectionMode === 'connected_bt'
-            ? 'HC-05 Connected'
-            : connectionMode === 'connected_usb'
-            ? `USB: ${portLabel || 'Connected'}`
-            : isConnecting
-            ? 'Connecting...'
-            : 'Bluetooth Disconnected'}
-        </span>
-      </div>
-
-      {/* Zone 3: Essential Controls (Optimized for Mobile Screens) */}
-      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-        {/* Public Live QR Code Button */}
-        {onOpenQRModal && (
-          <button
-            onClick={onOpenQRModal}
-            className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center justify-center relative shrink-0 ${
-              isLight
-                ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200'
-                : 'glass-panel text-purple-300 hover:text-white border-purple-500/40 hover:bg-purple-900/30'
-            }`}
-            title="Public Live QR Code: Share link for anyone to view live parking status"
-            aria-label="Public Live QR Code"
-          >
-            <QrCode className="w-4 h-4 text-purple-500 dark:text-purple-400" />
-            <span className="hidden sm:inline-block ml-1 text-[11px] font-mono font-bold">QR</span>
-          </button>
-        )}
-
-        {/* Notification Settings Button */}
-        {onOpenNotificationModal && (
-          <button
-            onClick={onOpenNotificationModal}
-            className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center justify-center relative shrink-0 ${
-              isLight
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
-                : 'glass-panel text-cyan-300 hover:text-white border-slate-700'
-            }`}
-            title="Notification Alerts"
-            aria-label="Notification settings"
-          >
-            <BellRing className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-cyan-400 ring-2 ring-slate-900" />
-          </button>
-        )}
-
-        {/* ChromeOS & Keyboard Shortcuts Guide Button */}
-        {onOpenChromeOSGuide && (
-          <button
-            onClick={onOpenChromeOSGuide}
-            className={`hidden xs:flex p-1.5 sm:p-2 rounded-xl border transition-colors items-center justify-center shrink-0 ${
-              isLight
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
-                : 'glass-panel text-cyan-400 hover:text-white border-slate-700'
-            }`}
-            title="ChromeOS & Chromebook Guide (Keyboard Shortcuts & USB Web Serial)"
-            aria-label="ChromeOS Guide"
-          >
-            <Laptop className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
-          </button>
-        )}
-
-        {/* Theme Toggle (Light / Dark) */}
-        <button
-          onClick={onToggleTheme}
-          className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center justify-center shrink-0 ${
+      {isReadOnlyView ? (
+        <div
+          className={`flex items-center gap-1.5 text-xs font-mono shrink-0 px-2.5 py-1 rounded-xl border transition-all ${
             isLight
-              ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
-              : 'glass-panel text-amber-300 hover:text-white border-slate-700'
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+              : 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
           }`}
-          title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-          aria-label="Toggle theme"
         >
-          {isLight ? <Moon className="w-4 h-4 text-slate-700" /> : <Sun className="w-4 h-4 text-amber-400" />}
-        </button>
-
-        {/* Fullscreen Toggle (Hidden on mobile phones to save width, available on tablets/desktop) */}
-        {onToggleFullscreen && (
-          <button
-            onClick={onToggleFullscreen}
-            className={`hidden md:flex p-2 rounded-xl border transition-colors items-center justify-center shrink-0 ${
-              isFullscreen
-                ? 'bg-rose-600 text-white border-rose-400'
-                : isLight
-                ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
-                : 'glass-panel text-slate-300 hover:text-white border-slate-700'
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+          <Radio className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+          <span className="font-bold text-[11px] sm:text-xs">
+            LIVE VIEW <span className="hidden sm:inline font-gujarati">(રીડ ઓન્લી ડિસ્પ્લે)</span>
+          </span>
+        </div>
+      ) : (
+        <div
+          className={`hidden md:flex items-center gap-1.5 text-xs font-mono shrink-0 px-2.5 py-1 rounded-xl border transition-all ${
+            connectionMode === 'connected_bt'
+              ? isLight
+                ? 'bg-blue-50 border-blue-200 text-blue-800'
+                : 'bg-blue-950/40 border-blue-500/40 text-blue-300'
+              : connectionMode === 'connected_usb'
+              ? isLight
+                ? 'bg-cyan-50 border-cyan-200 text-cyan-800'
+                : 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300'
+              : isConnecting
+              ? isLight
+                ? 'bg-amber-50 border-amber-300 text-amber-800'
+                : 'bg-amber-950/40 border-amber-500/40 text-amber-300'
+              : isLight
+              ? 'bg-rose-50/60 border-rose-200 text-rose-700'
+              : 'bg-slate-900/60 border-slate-700/60 text-slate-400'
+          }`}
+        >
+          <Bluetooth
+            className={`w-3.5 h-3.5 shrink-0 ${
+              connectionMode === 'connected_bt'
+                ? 'text-blue-500 dark:text-cyan-400'
+                : connectionMode === 'connected_usb'
+                ? 'text-cyan-500'
+                : isConnecting
+                ? 'text-amber-400 animate-pulse'
+                : 'text-rose-500 dark:text-rose-400'
             }`}
-            title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
-            aria-label="Toggle fullscreen"
-          >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-          </button>
-        )}
+          />
+          <span className="font-bold text-[11px] sm:text-xs">
+            {connectionMode === 'connected_bt'
+              ? 'HC-05 Connected'
+              : connectionMode === 'connected_usb'
+              ? `USB: ${portLabel || 'Connected'}`
+              : isConnecting
+              ? 'Connecting...'
+              : 'Bluetooth Disconnected'}
+          </span>
+        </div>
+      )}
 
-        {/* Primary Connection Action Button */}
-        {isConnected ? (
-          <button
-            onClick={onDisconnect}
-            className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/40 text-xs font-semibold font-mono flex items-center gap-1.5 transition-colors shadow-xs shrink-0"
-          >
-            <Power className="w-3.5 h-3.5" />
-            <span className="hidden xs:inline">Disconnect</span>
-          </button>
+      {/* Zone 3: Controls */}
+      <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        {/* Read-Only Mode: Show only essential viewing controls */}
+        {isReadOnlyView ? (
+          <>
+            {/* Theme Toggle (Light / Dark) */}
+            <button
+              onClick={onToggleTheme}
+              className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center justify-center shrink-0 ${
+                isLight
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                  : 'glass-panel text-amber-300 hover:text-white border-slate-700'
+              }`}
+              title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              aria-label="Toggle theme"
+            >
+              {isLight ? <Moon className="w-4 h-4 text-slate-700" /> : <Sun className="w-4 h-4 text-amber-400" />}
+            </button>
+
+            {/* Fullscreen Toggle */}
+            {onToggleFullscreen && (
+              <button
+                onClick={onToggleFullscreen}
+                className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center justify-center shrink-0 ${
+                  isFullscreen
+                    ? 'bg-rose-600 text-white border-rose-400'
+                    : isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                    : 'glass-panel text-slate-300 hover:text-white border-slate-700'
+                }`}
+                title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+                aria-label="Toggle fullscreen"
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+            )}
+
+            {/* Admin Switcher */}
+            {onSwitchToAdmin && (
+              <button
+                onClick={onSwitchToAdmin}
+                className={`px-2.5 py-1.5 rounded-xl border text-xs font-mono font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                  isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                    : 'glass-panel text-slate-300 hover:text-white border-slate-700'
+                }`}
+                title="કંટ્રોલર / એડમિન પેનલ પર જાઓ (Switch to Admin Mode)"
+              >
+                <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Admin Mode</span>
+              </button>
+            )}
+          </>
         ) : (
-          <div className="flex items-center gap-1.5 shrink-0">
-            {/* Connect Bluetooth (Primary Wireless Action) */}
+          <>
+            {/* Public Live QR Code Button */}
+            {onOpenQRModal && (
+              <button
+                onClick={onOpenQRModal}
+                className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center justify-center relative shrink-0 ${
+                  isLight
+                    ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200'
+                    : 'glass-panel text-purple-300 hover:text-white border-purple-500/40 hover:bg-purple-900/30'
+                }`}
+                title="Public Live QR Code: Share link for anyone to view live parking status"
+                aria-label="Public Live QR Code"
+              >
+                <QrCode className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+                <span className="hidden sm:inline-block ml-1 text-[11px] font-mono font-bold">QR</span>
+              </button>
+            )}
+
+            {/* Notification Settings Button */}
+            {onOpenNotificationModal && (
+              <button
+                onClick={onOpenNotificationModal}
+                className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center justify-center relative shrink-0 ${
+                  isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                    : 'glass-panel text-cyan-300 hover:text-white border-slate-700'
+                }`}
+                title="Notification Alerts"
+                aria-label="Notification settings"
+              >
+                <BellRing className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-cyan-400 ring-2 ring-slate-900" />
+              </button>
+            )}
+
+            {/* ChromeOS & Keyboard Shortcuts Guide Button */}
+            {onOpenChromeOSGuide && (
+              <button
+                onClick={onOpenChromeOSGuide}
+                className={`hidden xs:flex p-1.5 sm:p-2 rounded-xl border transition-colors items-center justify-center shrink-0 ${
+                  isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                    : 'glass-panel text-cyan-400 hover:text-white border-slate-700'
+                }`}
+                title="ChromeOS & Chromebook Guide (Keyboard Shortcuts & USB Web Serial)"
+                aria-label="ChromeOS Guide"
+              >
+                <Laptop className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+              </button>
+            )}
+
+            {/* Theme Toggle (Light / Dark) */}
             <button
-              onClick={onConnectBluetooth}
-              disabled={isConnecting}
-              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold font-mono flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50 whitespace-nowrap active:scale-95 shrink-0"
-              title="Connect wirelessly via Bluetooth"
+              onClick={onToggleTheme}
+              className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center justify-center shrink-0 ${
+                isLight
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                  : 'glass-panel text-amber-300 hover:text-white border-slate-700'
+              }`}
+              title={isLight ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              aria-label="Toggle theme"
             >
-              <Bluetooth className="w-3.5 h-3.5" />
-              <span>Connect Bluetooth</span>
+              {isLight ? <Moon className="w-4 h-4 text-slate-700" /> : <Sun className="w-4 h-4 text-amber-400" />}
             </button>
 
-            {/* Connect USB Cable (Secondary for OTG / PC) */}
-            <button
-              onClick={onConnectUSB}
-              disabled={isConnecting}
-              className="hidden sm:flex px-2.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold font-mono items-center gap-1 transition-all shadow-xs disabled:opacity-50 whitespace-nowrap active:scale-95 shrink-0"
-              title="Connect via USB Cable"
-            >
-              <Usb className="w-3.5 h-3.5" />
-              <span>USB</span>
-            </button>
-          </div>
+            {/* Fullscreen Toggle (Hidden on mobile phones to save width, available on tablets/desktop) */}
+            {onToggleFullscreen && (
+              <button
+                onClick={onToggleFullscreen}
+                className={`hidden md:flex p-2 rounded-xl border transition-colors items-center justify-center shrink-0 ${
+                  isFullscreen
+                    ? 'bg-rose-600 text-white border-rose-400'
+                    : isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                    : 'glass-panel text-slate-300 hover:text-white border-slate-700'
+                }`}
+                title={isFullscreen ? 'Exit Full Screen' : 'Full Screen'}
+                aria-label="Toggle fullscreen"
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+            )}
+
+            {/* Primary Connection Action Button */}
+            {isConnected ? (
+              <button
+                onClick={onDisconnect}
+                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-600 dark:text-rose-300 border border-rose-500/40 text-xs font-semibold font-mono flex items-center gap-1.5 transition-colors shadow-xs shrink-0"
+              >
+                <Power className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">Disconnect</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Connect Bluetooth (Primary Wireless Action) */}
+                <button
+                  onClick={onConnectBluetooth}
+                  disabled={isConnecting}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold font-mono flex items-center gap-1.5 transition-all shadow-xs disabled:opacity-50 whitespace-nowrap active:scale-95 shrink-0"
+                  title="Connect wirelessly via Bluetooth"
+                >
+                  <Bluetooth className="w-3.5 h-3.5" />
+                  <span>Connect Bluetooth</span>
+                </button>
+
+                {/* Connect USB Cable (Secondary for OTG / PC) */}
+                <button
+                  onClick={onConnectUSB}
+                  disabled={isConnecting}
+                  className="hidden sm:flex px-2.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold font-mono items-center gap-1 transition-all shadow-xs disabled:opacity-50 whitespace-nowrap active:scale-95 shrink-0"
+                  title="Connect via USB Cable"
+                >
+                  <Usb className="w-3.5 h-3.5" />
+                  <span>USB</span>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </header>

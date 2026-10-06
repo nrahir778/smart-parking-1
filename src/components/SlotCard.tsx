@@ -15,19 +15,24 @@ interface SlotCardProps {
   slot: SlotData;
   isConnected?: boolean;
   isLightMode?: boolean;
+  isReadOnlyView?: boolean;
 }
 
 export const SlotCard: React.FC<SlotCardProps> = ({
   slot,
   isConnected = false,
   isLightMode = false,
+  isReadOnlyView = false,
 }) => {
   const isOccupied = slot.status === 'OCCUPIED';
   const isEmpty = slot.status === 'EMPTY' || slot.status === 'AVAILABLE';
+  const isLive = isConnected || isReadOnlyView;
 
   // Format time of last update
   const formattedTime = slot.lastUpdated
     ? new Date(slot.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : isReadOnlyView
+    ? 'Live Stream'
     : 'Awaiting Bluetooth';
 
   const unit = slot.unit || 'cm';
@@ -35,21 +40,21 @@ export const SlotCard: React.FC<SlotCardProps> = ({
 
   // Parked duration text
   const durationText = useMemo(() => {
-    if (!isOccupied || !slot.parkedSince || !isConnected) return '00:00';
+    if (!isOccupied || !slot.parkedSince || !isLive) return '00:00';
     const elapsedSeconds = Math.max(0, Math.floor((Date.now() - slot.parkedSince) / 1000));
     const mins = Math.floor(elapsedSeconds / 60);
     const secs = elapsedSeconds % 60;
     return `${mins}m ${secs < 10 ? '0' : ''}${secs}s`;
-  }, [isOccupied, slot.parkedSince, slot.currentCharge, isConnected]);
+  }, [isOccupied, slot.parkedSince, slot.currentCharge, isLive]);
 
   return (
     <div
       className={`rounded-2xl p-3.5 sm:p-4 border transition-all duration-300 relative overflow-hidden flex flex-col justify-between shadow-md ${
-        isOccupied && isConnected
+        isOccupied && isLive
           ? isLightMode
             ? 'bg-rose-50/90 border-rose-300 text-slate-900 shadow-rose-100/50'
             : 'border-rose-500/40 bg-rose-950/20 text-white shadow-[0_4px_20px_rgba(244,63,94,0.15)]'
-          : isEmpty && isConnected
+          : isEmpty && isLive
           ? isLightMode
             ? 'bg-emerald-50/90 border-emerald-300 text-slate-900 shadow-emerald-100/50'
             : 'border-emerald-500/40 bg-emerald-950/20 text-white shadow-[0_4px_20px_rgba(16,185,129,0.15)]'
@@ -61,9 +66,9 @@ export const SlotCard: React.FC<SlotCardProps> = ({
       {/* Top Accent Line */}
       <div
         className={`absolute top-0 inset-x-0 h-1 transition-colors duration-300 ${
-          isOccupied && isConnected
+          isOccupied && isLive
             ? 'bg-rose-500'
-            : isEmpty && isConnected
+            : isEmpty && isLive
             ? 'bg-emerald-500'
             : 'bg-slate-500/40'
         }`}
@@ -75,9 +80,9 @@ export const SlotCard: React.FC<SlotCardProps> = ({
           <div className="flex items-center gap-2">
             <div
               className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-mono font-black text-sm border shadow-xs ${
-                isOccupied && isConnected
+                isOccupied && isLive
                   ? 'bg-rose-500/20 text-rose-600 dark:text-rose-300 border-rose-500/40'
-                  : isEmpty && isConnected
+                  : isEmpty && isLive
                   ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/40'
                   : 'bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/40'
               }`}
@@ -87,7 +92,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({
             <div>
               <h4 className="text-sm sm:text-base font-black tracking-wide flex items-center gap-1.5">
                 <span>{slot.name.toUpperCase().startsWith('LOT') ? slot.name : `LOT ${slot.id}`}</span>
-                {slot.hasHardwareReading && isConnected && (
+                {(slot.hasHardwareReading || isReadOnlyView) && (
                   <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-600 dark:text-cyan-300 border border-cyan-500/40">
                     LIVE
                   </span>
@@ -102,22 +107,22 @@ export const SlotCard: React.FC<SlotCardProps> = ({
           {/* Status Badge */}
           <div
             className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-mono font-bold tracking-wider uppercase border flex items-center gap-1 shadow-xs transition-all ${
-              isOccupied && isConnected
+              isOccupied && isLive
                 ? 'bg-rose-600 text-white border-rose-400 shadow-rose-600/30'
-                : isEmpty && isConnected
+                : isEmpty && isLive
                 ? 'bg-emerald-600 text-white border-emerald-400 shadow-emerald-600/30'
                 : 'bg-slate-600 text-slate-100 border-slate-400'
             }`}
           >
-            {isOccupied && isConnected ? (
+            {isOccupied && isLive ? (
               <>
                 <span className="text-xs">🔴</span>
                 <span>OCCUPIED</span>
               </>
-            ) : isEmpty && isConnected ? (
+            ) : isEmpty && isLive ? (
               <>
                 <span className="text-xs">🟢</span>
-                <span>EMPTY</span>
+                <span>AVAILABLE</span>
               </>
             ) : (
               <>
@@ -136,32 +141,38 @@ export const SlotCard: React.FC<SlotCardProps> = ({
               <IndianRupee className="w-3 h-3" />
               <span>₹10 / MIN</span>
             </span>
-            <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300">
-              Total Collection: <span className="text-amber-500 dark:text-amber-400 font-mono font-black tabular-nums">₹{slot.totalCollection || 0}</span>
-            </span>
+            {isReadOnlyView ? (
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                Status: <span className={isOccupied ? 'text-rose-500 font-bold' : 'text-emerald-500 font-bold'}>{isOccupied ? 'વાહન પાર્ક છે' : 'ખાલી છે (Free)'}</span>
+              </span>
+            ) : (
+              <span className="text-[10px] sm:text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                Total Collection: <span className="text-amber-500 dark:text-amber-400 font-mono font-black tabular-nums">₹{slot.totalCollection || 0}</span>
+              </span>
+            )}
           </div>
 
           {/* Active Bill Display */}
           <div className="p-2 rounded-lg bg-white/70 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <div>
               <p className="text-[9px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                {isConnected && isOccupied
-                  ? 'Live Charge (Updates every 3s)'
-                  : isConnected
+                {isLive && isOccupied
+                  ? 'Live Charge (₹10/min)'
+                  : isLive
                   ? 'Active Charge'
                   : 'Charge Status'}
               </p>
               <div className="flex items-baseline gap-1 mt-0.5">
                 <span
                   className={`text-xl sm:text-2xl font-mono font-black tabular-nums ${
-                    isConnected && isOccupied
+                    isLive && isOccupied
                       ? 'text-emerald-600 dark:text-emerald-400 animate-pulse'
                       : 'text-slate-400'
                   }`}
                 >
-                  ₹{(isConnected ? slot.currentCharge || 0 : 0).toFixed(2)}
+                  ₹{(isLive ? slot.currentCharge || 0 : 0).toFixed(2)}
                 </span>
-                {isConnected && isOccupied && (
+                {isLive && isOccupied && (
                   <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
                     · {durationText}
                   </span>
@@ -171,7 +182,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({
 
             {/* Vehicle or Connection Indicator */}
             <div className="text-right">
-              {isConnected ? (
+              {isLive ? (
                 isOccupied ? (
                   <div className="flex flex-col items-end">
                     <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
@@ -183,7 +194,7 @@ export const SlotCard: React.FC<SlotCardProps> = ({
                   </div>
                 ) : (
                   <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                    ₹0.00 for next car
+                    🟢 ખાલી સ્લોટ
                   </span>
                 )
               ) : (
@@ -195,8 +206,8 @@ export const SlotCard: React.FC<SlotCardProps> = ({
             </div>
           </div>
 
-          {/* Last Automatic Cut Deduction Information */}
-          {slot.lastDeduction && (
+          {/* Last Automatic Cut Deduction Information (Hidden in Read-Only Mode) */}
+          {!isReadOnlyView && slot.lastDeduction && (
             <div className="flex items-center justify-between text-[9px] font-mono text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/50 dark:border-slate-800/50">
               <span className="flex items-center gap-1">
                 <Receipt className="w-2.5 h-2.5 text-cyan-500" />

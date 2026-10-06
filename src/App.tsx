@@ -37,6 +37,7 @@ import {
 } from './services/webSerial';
 import { hc05Bluetooth, HC05BluetoothManager } from './services/webBluetooth';
 import { buzzerAudio } from './services/audioBuzzer';
+import { Eye, Sliders } from 'lucide-react';
 
 const INITIAL_SLOTS: SlotData[] = [
   {
@@ -132,6 +133,42 @@ export default function App() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isPWAInstalled, setIsPWAInstalled] = useState(false);
 
+  // Read-only Public Live View detector (from QR code or live URL)
+  const [isReadOnlyView, setIsReadOnlyView] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view');
+    const mode = params.get('mode');
+    const ro = params.get('readonly');
+    return view === 'live' || view === 'readonly' || mode === 'live' || ro === 'true' || ro === '1';
+  });
+
+  const switchToAdminMode = () => {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('view');
+      url.searchParams.delete('mode');
+      url.searchParams.delete('readonly');
+      window.history.pushState({}, '', url.toString());
+      setIsReadOnlyView(false);
+    } catch {
+      setIsReadOnlyView(false);
+    }
+  };
+
+  // Sync isReadOnlyView state if browser URL navigation happens
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const view = params.get('view');
+      const mode = params.get('mode');
+      const ro = params.get('readonly');
+      setIsReadOnlyView(view === 'live' || view === 'readonly' || mode === 'live' || ro === 'true' || ro === '1');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   // Diagnostics counters
   const [validMessageCount, setValidMessageCount] = useState(0);
   const [lastRawMessage, setLastRawMessage] = useState<string>('');
@@ -175,6 +212,7 @@ export default function App() {
 
   // Handle URL parameters & Shortcuts (QR code link, ChromeOS shelf)
   useEffect(() => {
+    if (isReadOnlyView) return; // Ignore operator shortcuts in read-only public viewer
     try {
       const params = new URLSearchParams(window.location.search);
       const action = params.get('action');
@@ -188,10 +226,11 @@ export default function App() {
         setTimeout(() => setIsQRModalOpen(true), 600);
       }
     } catch {}
-  }, []);
+  }, [isReadOnlyView]);
 
-  // Check on first app launch if permissions were granted
+  // Check on first app launch if permissions were granted (ONLY in operator mode, NOT for public viewers)
   useEffect(() => {
+    if (isReadOnlyView) return;
     try {
       const alreadyGranted = localStorage.getItem('smartparking_permissions_granted');
       if (!alreadyGranted) {
@@ -201,7 +240,7 @@ export default function App() {
         return () => clearTimeout(timer);
       }
     } catch {}
-  }, []);
+  }, [isReadOnlyView]);
 
   // Manage body overflow when in fullscreen mode
   useEffect(() => {
@@ -884,6 +923,8 @@ export default function App() {
         portLabel={portLabel}
         isFullscreen={isParkingLotFullscreen}
         onToggleFullscreen={() => setIsParkingLotFullscreen((prev) => !prev)}
+        isReadOnlyView={isReadOnlyView}
+        onSwitchToAdmin={isReadOnlyView ? switchToAdminMode : undefined}
       />
 
       {/* In-App Live Notification Toast HUD */}
@@ -910,6 +951,48 @@ export default function App() {
 
       {/* Main Container - Optimized Spacing for Mobile Screens */}
       <main className="flex-1 w-full max-w-7xl mx-auto px-2.5 sm:px-6 md:px-8 py-3 sm:py-6 space-y-3 sm:space-y-5">
+        {/* Public Read-Only Live View Banner */}
+        {isReadOnlyView && (
+          <div
+            className={`rounded-2xl p-3 sm:p-4 border flex flex-wrap items-center justify-between gap-3 shadow-md ${
+              isLight
+                ? 'bg-blue-50/90 border-blue-200 text-slate-800'
+                : 'bg-gradient-to-r from-blue-950/40 via-cyan-950/40 to-slate-900/60 border-cyan-500/30 text-white'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-500 dark:text-cyan-400 shrink-0">
+                <Eye className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-bold flex items-center gap-1.5">
+                    <span>પબ્લિક લાઈવ ડિસ્પ્લે (Read-Only)</span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 font-bold">
+                      LIVE
+                    </span>
+                  </h2>
+                </div>
+                <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  લાખાપર પાર્કિંગ વિસ્તારની ખાલી જગ્યાઓ. આ લિંક પર ફક્ત ડિસ્પ્લે દેખાશે (બ્લૂટૂથ કંટ્રોલ અને સેટિંગ્સ બંધ છે).
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={switchToAdminMode}
+              className={`text-xs font-mono font-bold px-3 py-1.5 rounded-xl border flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                isLight
+                  ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                  : 'bg-slate-800/80 hover:bg-slate-700 text-slate-200 border-slate-700'
+              }`}
+              title="કંટ્રોલર / એડમિન મોડ પર સ્વિચ કરો"
+            >
+              <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+              <span>એડમિન / કંટ્રોલર મોડ</span>
+            </button>
+          </div>
+        )}
+
         {/* Top Summary Bar (2x2 Grid on Mobile) */}
         <TopSummary
           slots={slots}
@@ -926,6 +1009,7 @@ export default function App() {
           onOpenQRModal={() => setIsQRModalOpen(true)}
           isCloudSyncActive={isCloudSyncActive}
           isChromeOS={isChromeOS}
+          isReadOnlyView={isReadOnlyView}
         />
 
         {/* 3D Isometric Parking Yard (Sleek Mobile Controls & Realistic Graphics) */}
@@ -943,13 +1027,15 @@ export default function App() {
           isConnected={isConnected}
         />
 
-        {/* Common Buzzer Indicator */}
-        <BuzzerIndicator
-          buzzerState={buzzerState}
-          onTriggerPulse={triggerBuzzer}
-          onToggleAudio={handleToggleAudio}
-          isLightMode={isLight}
-        />
+        {/* Common Buzzer Indicator (Operator Mode Only) */}
+        {!isReadOnlyView && (
+          <BuzzerIndicator
+            buzzerState={buzzerState}
+            onTriggerPulse={triggerBuzzer}
+            onToggleAudio={handleToggleAudio}
+            isLightMode={isLight}
+          />
+        )}
 
         {/* Live Slot Cards (Price, Live 3s Billing, Total Collection, Proximity Gauge) */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-4">
@@ -959,30 +1045,35 @@ export default function App() {
               slot={slot}
               isConnected={isConnected}
               isLightMode={isLight}
+              isReadOnlyView={isReadOnlyView}
             />
           ))}
         </div>
 
-        {/* Real-Time Bluetooth Hardware Diagnostics */}
-        <BluetoothDiagnostics
-          connectionMode={connectionMode}
-          portLabel={portLabel}
-          lastRawMessage={lastRawMessage}
-          lastDataReceivedAt={lastDataReceivedAt}
-          validMessageCount={validMessageCount}
-          isLightMode={isLight}
-        />
+        {/* Real-Time Bluetooth Hardware Diagnostics (Operator Mode Only) */}
+        {!isReadOnlyView && (
+          <BluetoothDiagnostics
+            connectionMode={connectionMode}
+            portLabel={portLabel}
+            lastRawMessage={lastRawMessage}
+            lastDataReceivedAt={lastDataReceivedAt}
+            validMessageCount={validMessageCount}
+            isLightMode={isLight}
+          />
+        )}
 
-        {/* Arduino Serial Monitor Console */}
-        <SerialConsole
-          logs={logs}
-          connectionMode={connectionMode}
-          onClearLogs={() => setLogs([])}
-          onSendSerialCommand={(cmd) => handleIncomingSerialLine(cmd)}
-          isBrowserSupported={isBrowserSupported}
-          errorMessage={errorMessage}
-          isLightMode={isLight}
-        />
+        {/* Arduino Serial Monitor Console (Operator Mode Only) */}
+        {!isReadOnlyView && (
+          <SerialConsole
+            logs={logs}
+            connectionMode={connectionMode}
+            onClearLogs={() => setLogs([])}
+            onSendSerialCommand={(cmd) => handleIncomingSerialLine(cmd)}
+            isBrowserSupported={isBrowserSupported}
+            errorMessage={errorMessage}
+            isLightMode={isLight}
+          />
+        )}
       </main>
 
       {/* Clean, Minimal Footer */}
@@ -997,27 +1088,36 @@ export default function App() {
           <span className="font-gujarati font-bold text-amber-500">લાખાપર પાર્કિંગ વિસ્તાર</span>
           <span className="opacity-30">·</span>
           <span className="font-gujarati text-slate-500">શ્રી સરકારી માધ્યમિક શાળા લાખાપર</span>
-          <span className="opacity-30">·</span>
-          <button
-            onClick={() => downloadArduinoInoFile()}
-            className="text-cyan-600 dark:text-cyan-400 hover:underline cursor-pointer font-bold"
-          >
-            📥 Download Arduino Firmware (.ino)
-          </button>
-          <span className="opacity-30">·</span>
-          <button
-            onClick={() => setIsArduinoGuideOpen(true)}
-            className="text-slate-500 hover:text-slate-400 hover:underline cursor-pointer"
-          >
-            Wiring Diagram
-          </button>
-          <span className="opacity-30">·</span>
-          <button
-            onClick={() => setIsChromeOSModalOpen(true)}
-            className="text-cyan-600 dark:text-cyan-400 hover:underline cursor-pointer font-bold"
-          >
-            💻 ChromeOS Shortcuts
-          </button>
+          {!isReadOnlyView ? (
+            <>
+              <span className="opacity-30">·</span>
+              <button
+                onClick={() => downloadArduinoInoFile()}
+                className="text-cyan-600 dark:text-cyan-400 hover:underline cursor-pointer font-bold"
+              >
+                📥 Download Arduino Firmware (.ino)
+              </button>
+              <span className="opacity-30">·</span>
+              <button
+                onClick={() => setIsArduinoGuideOpen(true)}
+                className="text-slate-500 hover:text-slate-400 hover:underline cursor-pointer"
+              >
+                Wiring Diagram
+              </button>
+              <span className="opacity-30">·</span>
+              <button
+                onClick={() => setIsChromeOSModalOpen(true)}
+                className="text-cyan-600 dark:text-cyan-400 hover:underline cursor-pointer font-bold"
+              >
+                💻 ChromeOS Shortcuts
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="opacity-30">·</span>
+              <span className="text-emerald-500 font-bold">🟢 રીઅલ-ટાઇમ લાઈવ બોર્ડ (Read-Only)</span>
+            </>
+          )}
         </div>
       </footer>
 
