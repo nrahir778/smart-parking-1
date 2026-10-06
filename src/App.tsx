@@ -24,10 +24,12 @@ import { NotificationSettingsModal } from './components/NotificationSettingsModa
 import { PermissionPromptModal } from './components/PermissionPromptModal';
 import { ReceiptsModal } from './components/ReceiptsModal';
 import { ChromeOSGuideModal } from './components/ChromeOSGuideModal';
+import { QRCodeModal } from './components/QRCodeModal';
 import { InAppToastContainer } from './components/InAppToastContainer';
 import { BluetoothDiagnostics } from './components/BluetoothDiagnostics';
 import { notificationService } from './services/notificationService';
 import { downloadArduinoInoFile } from './utils/downloadFirmware';
+import { cloudSync, ParkingCloudState } from './services/cloudSyncService';
 import {
   serialManager,
   SerialLineParser,
@@ -125,6 +127,8 @@ export default function App() {
   const [portLabel, setPortLabel] = useState<string | undefined>(undefined);
   const [isParkingLotFullscreen, setIsParkingLotFullscreen] = useState(false);
   const [isChromeOSModalOpen, setIsChromeOSModalOpen] = useState(false);
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [isCloudSyncActive, setIsCloudSyncActive] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isPWAInstalled, setIsPWAInstalled] = useState(false);
 
@@ -169,7 +173,7 @@ export default function App() {
     } catch {}
   };
 
-  // Handle ChromeOS Shelf Shortcuts
+  // Handle URL parameters & Shortcuts (QR code link, ChromeOS shelf)
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -180,6 +184,8 @@ export default function App() {
         setTimeout(() => setIsBluetoothModalOpen(true), 600);
       } else if (action === 'fullscreen') {
         setTimeout(() => setIsParkingLotFullscreen(true), 600);
+      } else if (action === 'qr') {
+        setTimeout(() => setIsQRModalOpen(true), 600);
       }
     } catch {}
   }, []);
@@ -529,6 +535,92 @@ export default function App() {
     ? arduinoSummary.totalOccupied
     : slots.filter((s) => s.status === 'OCCUPIED').length;
 
+  // Cloud Synchronization: Live Polling for Viewers (QR Scanners)
+  useEffect(() => {
+    // If not connected to local hardware, poll from Cloud so any QR scanner sees live status
+    if (!isConnected) {
+      cloudSync.startLivePolling((cloudData: ParkingCloudState) => {
+        if (!cloudData || !cloudData.slots) return;
+        setIsCloudSyncActive(true);
+
+        setSlots((prevSlots) =>
+          prevSlots.map((slot) => {
+            const updated = cloudData.slots.find((s) => s.id === slot.id);
+            if (!updated) return slot;
+            return {
+              ...slot,
+              status: updated.status,
+              distance: updated.distance,
+              unit: updated.unit || 'cm',
+              hasHardwareReading: true,
+              lastUpdated: Date.now(),
+            };
+          })
+        );
+
+        setGateState({
+          angle: cloudData.gateAngle ?? (cloudData.gate === 'CLOSED' ? 90 : 0),
+          status: cloudData.gate || 'OPEN',
+        });
+
+        if (cloudData.buzzerOn !== undefined) {
+          setBuzzerState((prev) => ({ ...prev, hardwareBuzzerOn: cloudData.buzzerOn }));
+        }
+
+        setArduinoSummary({
+          totalOccupied: cloudData.totalOccupied,
+          totalSlots: cloudData.totalSlots,
+          occupiedFraction: `${cloudData.totalOccupied}/${cloudData.totalSlots}`,
+          empty: Math.max(0, cloudData.totalSlots - cloudData.totalOccupied),
+          unknown: 0,
+          available: Math.max(0, cloudData.totalSlots - cloudData.totalOccupied),
+          gate: cloudData.gate,
+          lastUpdated: cloudData.lastUpdated || Date.now(),
+        });
+
+        setLastDataReceivedAt(cloudData.lastUpdated || Date.now());
+      });
+
+      return () => {
+        cloudSync.stopLivePolling();
+      };
+    } else {
+      // Stop listening when connected to local hardware (local device is Master)
+      cloudSync.stopLivePolling();
+      setIsCloudSyncActive(false);
+    }
+  }, [isConnected]);
+
+  // Broadcast to Cloud when local hardware updates parking status
+  useEffect(() => {
+    if (isConnected) {
+      cloudSync.broadcastState({
+        slots: slots.map((s) => ({
+          id: s.id as 1 | 2 | 3,
+          name: s.name,
+          status: s.status,
+          distance: s.distance,
+          unit: s.unit || 'cm',
+          updatedAt: new Date(s.lastUpdated || Date.now()).toISOString(),
+        })),
+        gate: gateState.status,
+        gateAngle: gateState.angle,
+        buzzerOn: buzzerState.hardwareBuzzerOn,
+        totalOccupied: effectiveOccupiedCount,
+        totalSlots: 3,
+        source: connectionMode === 'connected_bt' ? 'gateway_bt' : 'gateway_usb',
+      });
+    }
+  }, [
+    slots,
+    gateState.status,
+    gateState.angle,
+    buzzerState.hardwareBuzzerOn,
+    effectiveOccupiedCount,
+    isConnected,
+    connectionMode,
+  ]);
+
   // Connect via USB Cable (9600 Baud)
   const handleConnectUSB = async () => {
     setErrorMessage(null);
@@ -788,6 +880,7 @@ export default function App() {
         onDisconnect={handleDisconnect}
         onOpenNotificationModal={() => setIsNotificationModalOpen(true)}
         onOpenChromeOSGuide={() => setIsChromeOSModalOpen(true)}
+        onOpenQRModal={() => setIsQRModalOpen(true)}
         portLabel={portLabel}
         isFullscreen={isParkingLotFullscreen}
         onToggleFullscreen={() => setIsParkingLotFullscreen((prev) => !prev)}
@@ -830,6 +923,8 @@ export default function App() {
           onConnectBluetooth={() => setIsBluetoothModalOpen(true)}
           onOpenReceipts={() => setIsReceiptsModalOpen(true)}
           onOpenChromeOSGuide={() => setIsChromeOSModalOpen(true)}
+          onOpenQRModal={() => setIsQRModalOpen(true)}
+          isCloudSyncActive={isCloudSyncActive}
           isChromeOS={isChromeOS}
         />
 
@@ -977,6 +1072,17 @@ export default function App() {
         onInstallPWA={handleInstallPWA}
         canInstallPWA={Boolean(deferredPrompt)}
         isPWAInstalled={isPWAInstalled}
+      />
+
+      {/* Public Live QR Code Share Modal */}
+      <QRCodeModal
+        isOpen={isQRModalOpen}
+        onClose={() => setIsQRModalOpen(false)}
+        isLightMode={isLight}
+        totalOccupied={effectiveOccupiedCount}
+        totalSlots={3}
+        isHardwareConnected={isConnected}
+        connectionMode={connectionMode}
       />
     </div>
   );

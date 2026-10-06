@@ -1,14 +1,81 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+function devParkingApiPlugin(): Plugin {
+  let latestParkingState = {
+    slots: [
+      { id: 1, name: 'Slot 1', status: 'EMPTY', distance: 25.0, unit: 'cm', updatedAt: new Date().toISOString() },
+      { id: 2, name: 'Slot 2', status: 'EMPTY', distance: 25.0, unit: 'cm', updatedAt: new Date().toISOString() },
+      { id: 3, name: 'Slot 3', status: 'EMPTY', distance: 25.0, unit: 'cm', updatedAt: new Date().toISOString() },
+    ],
+    gate: 'OPEN',
+    gateAngle: 0,
+    buzzerOn: false,
+    totalOccupied: 0,
+    totalSlots: 3,
+    lastUpdated: Date.now(),
+    source: 'initial',
+  };
+
+  return {
+    name: 'dev-parking-api-plugin',
+    configureServer(server) {
+      server.middlewares.use('/api/parking/state', (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+        if (req.method === 'OPTIONS') {
+          res.statusCode = 204;
+          res.end();
+          return;
+        }
+
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk;
+          });
+          req.on('end', () => {
+            try {
+              const data = JSON.parse(body);
+              if (data && data.slots) {
+                latestParkingState = { ...data, lastUpdated: Date.now() };
+                res.statusCode = 200;
+                res.end(JSON.stringify({ ok: true, lastUpdated: latestParkingState.lastUpdated }));
+                return;
+              }
+            } catch (e) {}
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: 'Invalid state' }));
+          });
+          return;
+        }
+
+        if (req.method === 'GET') {
+          res.statusCode = 200;
+          res.end(JSON.stringify(latestParkingState));
+          return;
+        }
+
+        res.statusCode = 405;
+        res.end();
+      });
+    },
+  };
+}
 
 export default defineConfig(() => {
   return {
     plugins: [
       react(),
       tailwindcss(),
+      devParkingApiPlugin(),
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: [

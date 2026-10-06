@@ -8,9 +8,45 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.use(express.json());
+
+// In-memory live parking state for Northflank cloud deployment
+let latestParkingState = {
+  slots: [
+    { id: 1, name: 'Slot 1', status: 'EMPTY', distance: 25.0, unit: 'cm', updatedAt: new Date().toISOString() },
+    { id: 2, name: 'Slot 2', status: 'EMPTY', distance: 25.0, unit: 'cm', updatedAt: new Date().toISOString() },
+    { id: 3, name: 'Slot 3', status: 'EMPTY', distance: 25.0, unit: 'cm', updatedAt: new Date().toISOString() },
+  ],
+  gate: 'OPEN',
+  gateAngle: 0,
+  buzzerOn: false,
+  totalOccupied: 0,
+  totalSlots: 3,
+  lastUpdated: Date.now(),
+  source: 'initial',
+};
+
 // Health check endpoint for Northflank / container orchestrators
 app.get('/healthz', (req, res) => {
   res.status(200).json({ status: 'ok', uptime: process.uptime() });
+});
+
+// API: Get latest live parking state for QR code scanners & public viewers
+app.get('/api/parking/state', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.json(latestParkingState);
+});
+
+// API: Broadcast live parking state from gateway device (connected phone/Arduino)
+app.post('/api/parking/state', (req, res) => {
+  if (req.body && req.body.slots) {
+    latestParkingState = {
+      ...req.body,
+      lastUpdated: Date.now(),
+    };
+    return res.status(200).json({ ok: true, lastUpdated: latestParkingState.lastUpdated });
+  }
+  res.status(400).json({ error: 'Invalid parking state' });
 });
 
 // Serve static assets from Vite build output (dist/)

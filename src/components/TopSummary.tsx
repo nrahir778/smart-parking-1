@@ -14,6 +14,8 @@ import {
   Receipt,
   Laptop,
   AlertTriangle,
+  QrCode,
+  Globe,
 } from 'lucide-react';
 import { downloadArduinoInoFile } from '../utils/downloadFirmware';
 
@@ -29,6 +31,8 @@ interface TopSummaryProps {
   onConnectBluetooth?: () => void;
   onOpenReceipts?: () => void;
   onOpenChromeOSGuide?: () => void;
+  onOpenQRModal?: () => void;
+  isCloudSyncActive?: boolean;
   isChromeOS?: boolean;
 }
 
@@ -43,6 +47,8 @@ export const TopSummary: React.FC<TopSummaryProps> = ({
   onConnectBluetooth,
   onOpenReceipts,
   onOpenChromeOSGuide,
+  onOpenQRModal,
+  isCloudSyncActive = false,
   isChromeOS = false,
 }) => {
   const [now, setNow] = useState(Date.now());
@@ -58,14 +64,16 @@ export const TopSummary: React.FC<TopSummaryProps> = ({
   const isStale = isConnected && secondsSinceLastData !== null && secondsSinceLastData >= 5;
 
   const totalSlots = arduinoSummary ? arduinoSummary.totalSlots : slots.length;
-  const occupiedCount = isConnected
+  const hasLiveDataSource = isConnected || isCloudSyncActive;
+
+  const occupiedCount = hasLiveDataSource
     ? arduinoSummary
       ? arduinoSummary.totalOccupied
       : slots.filter((s) => s.status === 'OCCUPIED').length
-    : 0;
+    : slots.filter((s) => s.status === 'OCCUPIED').length;
 
-  const freeCount = isConnected ? Math.max(0, totalSlots - occupiedCount) : totalSlots;
-  const isParkingFull = isConnected && totalSlots > 0 && occupiedCount >= totalSlots;
+  const freeCount = Math.max(0, totalSlots - occupiedCount);
+  const isParkingFull = totalSlots > 0 && occupiedCount >= totalSlots;
 
   const effectiveGateStatus = arduinoSummary ? arduinoSummary.gate : gateState.status;
   const isGateOpen = effectiveGateStatus === 'OPEN';
@@ -134,6 +142,17 @@ export const TopSummary: React.FC<TopSummaryProps> = ({
                 </span>
               )}
             </>
+          ) : isCloudSyncActive ? (
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <Globe className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="font-bold">Live Cloud Stream (ઇન્ટરનેટ લાઇવ)</span>
+              {secondsSinceLastData !== null && (
+                <span className="opacity-75">
+                  ({secondsSinceLastData <= 1 ? 'Live' : `${secondsSinceLastData}s ago`})
+                </span>
+              )}
+            </div>
           ) : (
             <div className="flex items-center gap-1.5 text-[11px]">
               <Radio className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -144,6 +163,18 @@ export const TopSummary: React.FC<TopSummaryProps> = ({
 
         {/* Dynamic Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {/* Public Live QR Code Share Button */}
+          {onOpenQRModal && (
+            <button
+              onClick={onOpenQRModal}
+              className="px-2.5 py-1 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-600 dark:text-purple-300 border border-purple-500/30 text-[11px] sm:text-xs font-mono font-bold flex items-center gap-1 transition-all shadow-xs active:scale-95 cursor-pointer min-h-[32px]"
+              title="Public Live QR Code: Share link so anyone can view live parking"
+            >
+              <QrCode className="w-3.5 h-3.5 text-purple-500" />
+              <span>QR Code</span>
+            </button>
+          )}
+
           {onOpenChromeOSGuide && (
             <button
               onClick={onOpenChromeOSGuide}

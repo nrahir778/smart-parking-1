@@ -10,6 +10,7 @@ import {
   Minimize2,
   BellRing,
   Laptop,
+  QrCode,
 } from 'lucide-react';
 
 interface HeaderBarProps {
@@ -21,6 +22,7 @@ interface HeaderBarProps {
   onDisconnect: () => void;
   onOpenNotificationModal?: () => void;
   onOpenChromeOSGuide?: () => void;
+  onOpenQRModal?: () => void;
   portLabel?: string;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
@@ -35,6 +37,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onDisconnect,
   onOpenNotificationModal,
   onOpenChromeOSGuide,
+  onOpenQRModal,
   portLabel,
   isFullscreen = false,
   onToggleFullscreen,
@@ -125,6 +128,23 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
       {/* Zone 3: Essential Controls (Optimized for Mobile Screens) */}
       <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+        {/* Public Live QR Code Button */}
+        {onOpenQRModal && (
+          <button
+            onClick={onOpenQRModal}
+            className={`p-1.5 sm:p-2 rounded-xl border transition-colors flex items-center justify-center relative shrink-0 ${
+              isLight
+                ? 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200'
+                : 'glass-panel text-purple-300 hover:text-white border-purple-500/40 hover:bg-purple-900/30'
+            }`}
+            title="Public Live QR Code: Share link for anyone to view live parking status"
+            aria-label="Public Live QR Code"
+          >
+            <QrCode className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+            <span className="hidden sm:inline-block ml-1 text-[11px] font-mono font-bold">QR</span>
+          </button>
+        )}
+
         {/* Notification Settings Button */}
         {onOpenNotificationModal && (
           <button
