@@ -286,19 +286,32 @@ export const BluetoothConnectModal: React.FC<BluetoothConnectModalProps> = ({
                       </div>
 
                       <div className="space-y-1.5 text-[11px] pt-1 border-t border-amber-500/20">
+                        <p className="font-semibold text-rose-400 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                          સ્ક્રીન પર "wants to connect to a serial port" અને "No compatible devices found" કેમ આવ્યું?
+                        </p>
+                        <p className="opacity-90 pl-5 text-[11px] text-rose-300 dark:text-rose-200">
+                          આ ડાયલોગ ક્રોમ બ્રાઉઝરનું <strong>ફિઝિકલ વાયર્ડ USB કેબલ</strong> માટેનું છે. જ્યાં સુધી તમે Arduino ને <strong>USB OTG કેબલ</strong> વડે ફોન સાથે નહીં જોડો ત્યાં સુધી એમાં કોઈ ડિવાઈસ નહીં દેખાય. <strong>વાયરલેસ HC-05 બ્લૂટૂથ એ લિસ્ટમાં ક્યારેય નહીં દેખાય</strong> કારણ કે ક્રોમ બ્રાઉઝર વાયરલેસ બ્લૂટૂથને USB Serial પોર્ટ તરીકે માન્ય રાખતું નથી.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5 text-[11px] pt-1 border-t border-amber-500/20">
                         <p className="font-semibold text-emerald-400 flex items-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          આ સમસ્યાના ૩ સરળ ઉકેલો (3 Working Solutions):
+                          આ સમસ્યાના ૩ ૧૦૦% સાચા ઉકેલો (3 Working Solutions):
                         </p>
-                        <ol className="list-decimal list-inside space-y-1 opacity-95 pl-1 font-sans">
+                        <ol className="list-decimal list-inside space-y-1.5 opacity-95 pl-1 font-sans">
                           <li>
-                            <strong>ઉકેલ ૧ (સૌથી સરળ): USB OTG કેબલ વાપરો</strong> &mdash; આર્ડ્યુનોને USB કેબલ અને ₹૩૦ ના OTG એડેપ્ટર વડે સીધું તમારા મોબાઇલમાં જોડો અને નીચેનું <strong>"Connect via USB OTG"</strong> બટન દબાવો. ક્રોમમાં ૧૦૦% ડેટા તરત ચાલુ થઈ જશે!
+                            <strong>ઉકેલ ૧ (વાયરલેસ HC-05 માટે સૌથી બેસ્ટ): Native Android APK ઇન્સ્ટોલ કરો</strong> &mdash; 
+                            તમારા GitHub Releases પરથી બનાવેલી APK ફોનમાં ઇન્સ્ટોલ કરો. એ APK માં <strong>સ્પેશિયલ નેટિવ Java બ્લૂટૂથ ડ્રાઇવર</strong> સામેલ છે જે HC-05 (PIN 1234) સાથે સીધું વાયરલેસ કનેક્ટ થઈ જશે!
                           </li>
                           <li>
-                            <strong>ઉકેલ ૨: HM-10 અથવા AT-09 BLE મોડ્યુલ વાપરો</strong> &mdash; જો બ્રાઉઝરમાં વાયરલેસ કનેક્ટ કરવું હોય તો HC-05 ની જગ્યાએ HM-10 લગાવો (આ જ સરખા પિન VCC, GND, TX, RX). તે ક્રોમમાં તરત શોધાશે.
+                            <strong>ઉકેલ ૨ (બ્રાઉઝરમાં ચલાવવા માટે): USB OTG કેબલ જોડો</strong> &mdash; 
+                            આર્ડ્યુનોને વાદળી USB કેબલ અને ₹૨૦ ના OTG એડેપ્ટર વડે સીધું તમારા મોબાઇલમાં જોડો અને પછી જ "Connect via USB Cable" બટન દબાવો. ક્રોમમાં ૧૦૦% ડેટા તરત ચાલુ થઈ જશે!
                           </li>
                           <li>
-                            <strong>ઉકેલ ૩: મોબાઈલના Settings માં પેર કરો</strong> &mdash; ફોનના <strong>Settings &rarr; Bluetooth</strong> માં જઈ "Pair new device" પર ક્લિક કરો, HC-05 પસંદ કરી પિન <strong>1234</strong> નાખો.
+                            <strong>ઉકેલ ૩ (બ્રાઉઝરમાં વાયરલેસ માટે): HM-10 / AT-09 BLE મોડ્યુલ વાપરો</strong> &mdash; 
+                            HC-05 ની જગ્યાએ HM-10 BLE મોડ્યુલ લગાવો (તે જ 4 વાયર VCC, GND, TX, RX). ક્રોમના બ્લૂટૂથમાં તે તરત જ દેખાશે.
                           </li>
                         </ol>
                       </div>
@@ -316,19 +329,32 @@ export const BluetoothConnectModal: React.FC<BluetoothConnectModalProps> = ({
                       </div>
 
                       <div className="space-y-1.5 text-[11px] pt-1 border-t border-amber-500/20">
+                        <p className="font-semibold text-rose-400 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                          Why does Chrome show "wants to connect to a serial port" &amp; "No compatible devices found"?
+                        </p>
+                        <p className="opacity-90 pl-5 text-[11px] text-rose-300 dark:text-rose-200">
+                          That dialog is Chrome's <strong>physical wired USB cable</strong> picker. Unless your Arduino is physically plugged into your phone with a <strong>USB OTG cable</strong>, no devices will appear. <strong>Wireless Bluetooth (HC-05) will NEVER appear in the serial port popup</strong> because Google Chrome does not bridge Bluetooth RFCOMM to Web Serial on Android.
+                        </p>
+                      </div>
+
+                      <div className="space-y-1.5 text-[11px] pt-1 border-t border-amber-500/20">
                         <p className="font-semibold text-emerald-400 flex items-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          3 Guaranteed Solutions for Android:
+                          3 Guaranteed Working Solutions:
                         </p>
-                        <ol className="list-decimal list-inside space-y-1 opacity-95 pl-1 font-sans">
+                        <ol className="list-decimal list-inside space-y-1.5 opacity-95 pl-1 font-sans">
                           <li>
-                            <strong>Solution 1 (Recommended): Connect via USB OTG Cable</strong> &mdash; Plug your Arduino Uno into your Android phone via USB OTG adapter and click <strong>"Connect via USB OTG"</strong> below. Works natively in Chrome with zero Bluetooth hassles!
+                            <strong>Solution 1 (Best for Wireless HC-05): Install the Native Android APK</strong> &mdash; 
+                            Install the Android APK built by your GitHub Actions workflow. The APK includes a <strong>custom native Java Bluetooth RFCOMM driver</strong> that discovers and pairs with HC-05 (PIN 1234) directly!
                           </li>
                           <li>
-                            <strong>Solution 2: Use HM-10 or AT-09 BLE Module</strong> &mdash; If you need wireless in Chrome, replace HC-05 with HM-10 (same 4 pins: VCC, GND, TX, RX, 9600 baud). It appears immediately in Chrome's Bluetooth scanner!
+                            <strong>Solution 2 (For Web Browser): Connect via USB OTG Cable</strong> &mdash; 
+                            Plug your Arduino Uno into your phone using a USB cable and a cheap USB OTG adapter. Once plugged in, the serial port dialog will detect Arduino immediately!
                           </li>
                           <li>
-                            <strong>Solution 3: Pair in Android Settings first</strong> &mdash; Open Android <strong>Settings &rarr; Bluetooth</strong>, pair HC-05 with PIN <strong>1234</strong> or <strong>0000</strong>, and ensure Location (GPS) is turned ON.
+                            <strong>Solution 3 (For Wireless in Web Browser): Use HM-10 / AT-09 BLE Module</strong> &mdash; 
+                            Replace the HC-05 with an HM-10 BLE module (uses same 4 pins VCC, GND, TX, RX). It appears right away in Chrome's Web Bluetooth scanner.
                           </li>
                         </ol>
                       </div>
@@ -384,16 +410,17 @@ export const BluetoothConnectModal: React.FC<BluetoothConnectModalProps> = ({
                     )}
                   </button>
 
-                  {/* USB OTG Direct Alternative (High Priority on Android) */}
+                  {/* USB OTG Direct Alternative (Wired USB Cable Only) */}
                   <button
                     onClick={() => {
                       onClose();
                       onConnectUSB();
                     }}
+                    title="Requires Arduino connected via physical USB OTG cable adapter"
                     className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer active:scale-95"
                   >
                     <Usb className="w-4 h-4" />
-                    <span>Connect via USB OTG (Instant)</span>
+                    <span>Connect USB Cable (OTG Adapter)</span>
                   </button>
 
                   <button
